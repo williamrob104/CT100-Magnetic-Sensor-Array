@@ -29,11 +29,13 @@ def rectangular_coil(x_width, y_width, fillet, offset, sides=65535):
 # parameters in mm
 board_center = (100, 100)
 board_width = 100
-board_fillet = 8
+board_fillet = 12.2
 board_margin = 2
 trace_width = 0.4
 trace_offset = 0.6
 coil_fillet = 10
+hole_spacing = 44
+hole_diameter = 2.1
 # number of turns for each coil
 coil_turns = 33
 
@@ -42,13 +44,20 @@ cutout = []
 for i in range(4):
     corner_x = board_center[0] + (board_width/2 - board_fillet) * (-1 if 0<i<3 else 1)
     corner_y = board_center[1] + (board_width/2 - board_fillet) * (-1 if 1<i   else 1)
-    edge = ('arc', (corner_x+board_fillet*np.cos(np.pi/2* i    ),corner_y+board_fillet*np.sin(np.pi/2* i    )),
-                   (corner_x+board_fillet*np.cos(np.pi/2*(i+.5)),corner_y+board_fillet*np.sin(np.pi/2*(i+.5))),
-                   (corner_x+board_fillet*np.cos(np.pi/2*(i+ 1)),corner_y+board_fillet*np.sin(np.pi/2*(i+ 1))) )
+    edge = ('arc', (corner_x+board_fillet*np.cos(np.pi/2* i    ), corner_y+board_fillet*np.sin(np.pi/2* i    )),
+                   (corner_x+board_fillet*np.cos(np.pi/2*(i+.5)), corner_y+board_fillet*np.sin(np.pi/2*(i+.5))),
+                   (corner_x+board_fillet*np.cos(np.pi/2*(i+ 1)), corner_y+board_fillet*np.sin(np.pi/2*(i+ 1))) )
     cutout.append(edge)
 for i in range(4):
     edge = ('line', cutout[i%4][3], cutout[(i+1)%4][1])
     cutout.append(edge)
+
+for i in range(4):
+    hole_x = board_center[0] + hole_spacing/2 * (-1 if 0<i<3 else 1)
+    hole_y = board_center[1] + hole_spacing/2 * (-1 if 1<i   else 1)
+    edge = ('circle', (hole_x,hole_y), (hole_x+hole_diameter/2,hole_y))
+    cutout.append(edge)
+
 
 coil_x_width = (board_width - board_margin*2 - trace_width - trace_offset) / 2
 coil_y_width =  board_width - board_margin*2 - trace_width
@@ -77,6 +86,8 @@ with open(filename, 'r+') as f:
             f.write(f'  (gr_arc (start {edge[1][0]} {edge[1][1]}) (mid {edge[2][0]} {edge[2][1]}) (end {edge[3][0]} {edge[3][1]}) (stroke (width 0.1) (type default)) (layer "Edge.Cuts"))\n')
         elif type == 'line':
             f.write(f'  (gr_line (start {edge[1][0]} {edge[1][1]}) (end {edge[2][0]} {edge[2][1]}) (stroke (width 0.1) (type default)) (layer "Edge.Cuts"))\n')
+        elif type == 'circle':
+            f.write(f'  (gr_circle (center {edge[1][0]} {edge[1][1]}) (end {edge[2][0]} {edge[2][1]}) (stroke (width 0.1) (type default)) (fill none) (layer "Edge.Cuts"))\n')
 
     for trace in traces:
         x = trace[0]

@@ -1,6 +1,12 @@
 import os
 import numpy as np
 
+
+def vstack(a, b):
+    b = np.append(np.array(b), np.zeros(a.shape[1]-len(b)))
+    return np.append(a, b.reshape(1,-1), axis=0)
+
+
 def rectangular_coil(x_width, y_width, fillet, offset, sides=65535):
     corners = [
         ( x_width/2 - fillet, -y_width/2 + fillet - offset),
@@ -8,22 +14,84 @@ def rectangular_coil(x_width, y_width, fillet, offset, sides=65535):
         (-x_width/2 + fillet,  y_width/2 - fillet),
         (-x_width/2 + fillet, -y_width/2 + fillet)]
 
-    x = np.array( x_width/2)
-    y = np.array(-y_width/2)
+    trace_type = []
+    trace_x = np.empty(shape=(0,3))
+    trace_y = np.empty(shape=(0,3))
+
+    x_prev, y_prev = x_width/2, -y_width/2
     for i in range(1,sides+1):
         if i % 4 == 0:
             fillet -= offset
             if fillet + np.min(corners[1]) < 0:
                 break
-        if fillet >= 0:
-            theta = np.linspace(np.pi/2*(i-1), np.pi/2*i)
-            x = np.append(x, np.cos(theta) * fillet + corners[i%4][0])
-            y = np.append(y, np.sin(theta) * fillet + corners[i%4][1])
+        if fillet > 0:
+            theta = np.linspace(np.pi/2*(i-1), np.pi/2*i, 3)
+            x = corners[i%4][0] + fillet * np.cos(theta)
+            y = corners[i%4][1] + fillet * np.sin(theta)
+            trace_type.append('line')
+            trace_x = vstack(trace_x, [x_prev, x[0]])
+            trace_y = vstack(trace_y, [y_prev, y[0]])
+            trace_type.append('arc')
+            trace_x = vstack(trace_x, x)
+            trace_y = vstack(trace_y, y)
+            x_prev, y_prev = x[2], y[2]
         else:
-            x = np.append(x, corners[i%4][0] + fillet * (1 if   i%4<2 else -1))
-            y = np.append(y, corners[i%4][1] + fillet * (1 if 0<i%4<3 else -1))
+            x = corners[i%4][0] + fillet * (1 if   i%4<2 else -1)
+            y = corners[i%4][1] + fillet * (1 if 0<i%4<3 else -1)
+            trace_type.append('line')
+            trace_x = vstack(trace_x, [x_prev, x])
+            trace_y = vstack(trace_y, [y_prev, y])
+            x_prev, y_prev = x, y
 
-    return x, y
+    return trace_type, trace_x, trace_y
+
+
+def square_board(board_width, board_fillet, hole_spacing=None, hole_diameter=None):
+    cut_type = []
+    cut_x = np.empty(shape=(0,3))
+    cut_y = np.empty(shape=(0,3))
+
+    for i in range(4):
+        corner_x = (board_width/2 - board_fillet) * (-1 if 0<i<3 else 1)
+        corner_y = (board_width/2 - board_fillet) * (-1 if 1<i   else 1)
+        theta = np.linspace(np.pi/2*i, np.pi/2*(i+1), 3)
+        x = corner_x + board_fillet * np.cos(theta)
+        y = corner_y + board_fillet * np.sin(theta)
+        cut_type.append('arc')
+        cut_x = vstack(cut_x, x)
+        cut_y = vstack(cut_y, y)
+    for i in range(4):
+        cut_type.append('line')
+        cut_x = vstack(cut_x, [cut_x[i,2], cut_x[(i+1)%4, 0]])
+        cut_y = vstack(cut_y, [cut_y[i,2], cut_y[(i+1)%4, 0]])
+
+    if hole_spacing is not None:
+        for i in range(4):
+            hole_x = hole_spacing/2 * (-1 if 0<i<3 else 1)
+            hole_y = hole_spacing/2 * (-1 if 1<i   else 1)
+            cut_type.append('circle')
+            cut_x = vstack(cut_x, [hole_x, hole_x + hole_diameter/2])
+            cut_y = vstack(cut_y, [hole_y, hole_y])
+
+    return cut_type, cut_x, cut_y
+
+
+def draw_trace(f, trace_type, x, y, width, layer):
+    edgecut_layer = 'Edge.Cuts'
+    if layer != edgecut_layer:
+        post = f'(width {width}) (layer "{layer}")'
+    else:
+        post = f'(stroke (width 0.1) (type default)) (layer "{layer}")'
+    for i in range(len(trace_type)):
+        if trace_type[i] == 'arc':
+            entity = 'arc' if layer != edgecut_layer else 'gr_arc'
+            f.write(f'  ({entity} (start {x[i,0]} {y[i,0]}) (mid {x[i,1]} {y[i,1]}) (end {x[i,2]} {y[i,2]}) {post})\n')
+        elif trace_type[i]  == 'line':
+            entity = 'segment' if layer != edgecut_layer else 'gr_line'
+            f.write(f'  ({entity} (start {x[i,0]} {y[i,0]}) (end {x[i,1]} {y[i,1]}) {post})\n')
+        elif trace_type[i]  == 'circle':
+            entity = 'circle' if layer != edgecut_layer else 'gr_circle'
+            f.write(f'  ({entity} (center {x[i,0]} {y[i,0]}) (end {x[i,1]} {y[i,1]}) {post})\n')
 
 
 # parameters in mm
@@ -40,35 +108,19 @@ hole_diameter = 2.1
 coil_turns = 33
 
 
-cutout = []
-for i in range(4):
-    corner_x = board_center[0] + (board_width/2 - board_fillet) * (-1 if 0<i<3 else 1)
-    corner_y = board_center[1] + (board_width/2 - board_fillet) * (-1 if 1<i   else 1)
-    edge = ('arc', (corner_x+board_fillet*np.cos(np.pi/2* i    ), corner_y+board_fillet*np.sin(np.pi/2* i    )),
-                   (corner_x+board_fillet*np.cos(np.pi/2*(i+.5)), corner_y+board_fillet*np.sin(np.pi/2*(i+.5))),
-                   (corner_x+board_fillet*np.cos(np.pi/2*(i+ 1)), corner_y+board_fillet*np.sin(np.pi/2*(i+ 1))) )
-    cutout.append(edge)
-for i in range(4):
-    edge = ('line', cutout[i%4][3], cutout[(i+1)%4][1])
-    cutout.append(edge)
-
-for i in range(4):
-    hole_x = board_center[0] + hole_spacing/2 * (-1 if 0<i<3 else 1)
-    hole_y = board_center[1] + hole_spacing/2 * (-1 if 1<i   else 1)
-    edge = ('circle', (hole_x,hole_y), (hole_x+hole_diameter/2,hole_y))
-    cutout.append(edge)
-
+cut_type,x,y = square_board(board_width, board_fillet, hole_spacing, hole_diameter)
+cutout = (cut_type, x+board_center[0], y+board_center[1], 0.1, 'Edge.Cuts')
 
 coil_x_width = (board_width - board_margin*2 - trace_width - trace_offset) / 2
 coil_y_width =  board_width - board_margin*2 - trace_width
 coil_offset = (coil_x_width + trace_offset) / 2
 
-x,y = rectangular_coil(coil_x_width, coil_y_width, coil_fillet, trace_offset, coil_turns*4)
+trace_type,x,y = rectangular_coil(coil_x_width, coil_y_width, coil_fillet, trace_offset, coil_turns*4)
 traces = [
-    (-x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
-    ( x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
-    ( x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
-    (-x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
+    (trace_type, -x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
+    (trace_type,  x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
+    (trace_type,  x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
+    (trace_type, -x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
 ]
 
 vias = [
@@ -85,22 +137,10 @@ with open(filename, 'r+') as f:
     f.seek(0)
     f.write(text)
 
-    for edge in cutout:
-        type = edge[0]
-        if type == 'arc':
-            f.write(f'  (gr_arc (start {edge[1][0]} {edge[1][1]}) (mid {edge[2][0]} {edge[2][1]}) (end {edge[3][0]} {edge[3][1]}) (stroke (width 0.1) (type default)) (layer "Edge.Cuts"))\n')
-        elif type == 'line':
-            f.write(f'  (gr_line (start {edge[1][0]} {edge[1][1]}) (end {edge[2][0]} {edge[2][1]}) (stroke (width 0.1) (type default)) (layer "Edge.Cuts"))\n')
-        elif type == 'circle':
-            f.write(f'  (gr_circle (center {edge[1][0]} {edge[1][1]}) (end {edge[2][0]} {edge[2][1]}) (stroke (width 0.1) (type default)) (fill none) (layer "Edge.Cuts"))\n')
+    draw_trace(f, *cutout)
 
     for trace in traces:
-        x = trace[0]
-        y = trace[1]
-        width = trace[2]
-        layer = trace[3]
-        for i in range(len(x)-1):
-            f.write(f'  (segment (start {x[i]} {y[i]}) (end {x[i+1]} {y[i+1]}) (width {width}) (layer "{layer}"))\n')
+        draw_trace(f, *trace)
 
     for via in vias:
         pos = via[0]

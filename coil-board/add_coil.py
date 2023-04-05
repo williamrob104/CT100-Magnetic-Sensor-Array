@@ -71,6 +71,11 @@ traces = [
     (-x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
 ]
 
+vias = [
+    ((127, 100), 0.8, 0.4),
+    (( 73, 100), 0.8, 0.4),
+]
+
 current_dir = os.path.dirname(os.path.realpath(__file__))
 filename = os.path.join(current_dir, "coil-board.kicad_pcb")
 
@@ -96,6 +101,12 @@ with open(filename, 'r+') as f:
         layer = trace[3]
         for i in range(len(x)-1):
             f.write(f'  (segment (start {x[i]} {y[i]}) (end {x[i+1]} {y[i+1]}) (width {width}) (layer "{layer}"))\n')
+
+    for via in vias:
+        pos = via[0]
+        size = via[1]
+        drill = via[2]
+        f.write(f'  (via (at {pos[0]} {pos[1]}) (size {size}) (drill {drill}) (layers "F.Cu" "B.Cu"))\n')
 
     f.write('\n)\n')
     f.truncate()

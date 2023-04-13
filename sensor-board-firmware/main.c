@@ -10,7 +10,7 @@
 #define SYNC2   GPIOA, GPIO_PIN_2
 #define SYNC3   GPIOD, GPIO_PIN_3
 #define SYNC4   GPIOA, GPIO_PIN_1
-#define LED     GPIOA, GPIO_PIN_3
+#define LED     GPIOC, GPIO_PIN_3
 
 #define BAUD_RATE 9600u
 
@@ -46,6 +46,7 @@ void setChannel(uint8_t channel_num, uint8_t sensor_num)
 main()
 {
 	uint8_t cmd, cmd_u, cmd_l;
+	uint8_t accept;
 
 	// init GPIO
 	GPIO_Init(GAIN_A0, GPIO_MODE_OUT_PP_LOW_SLOW);
@@ -81,20 +82,27 @@ main()
 			   UART1_MODE_TXRX_ENABLE);
 	UART1_Cmd(ENABLE);
 
-	// execute commands on UART
+	// execute commands from UART
 	while (1) {
 		while (UART1_GetFlagStatus(UART1_FLAG_RXNE) == RESET) {}
-		UART1_ClearFlag(UART1_FLAG_RXNE);
-
 		cmd = UART1_ReceiveData8();
+		accept = 1;
+
 		cmd_u = cmd & 0xF0;
 		cmd_l = cmd & 0x0F;
 
 		if (cmd == 'z')
 			GPIO_WriteReverse(LED);
-		else if (cmd_u == 0xA0)
+		else if (cmd_u == 0xA0 && cmd_l <= 0x03)
 			setGain(cmd_l);
 		else if (0x10 <= cmd_u & cmd_u <= 0x40)
 			setChannel(cmd_u >> 4, cmd_l);
+		else
+			accept = 0;
+
+		if (accept) {
+			while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET) {}
+			UART1_SendData8(cmd);
+		}
 	}
 }

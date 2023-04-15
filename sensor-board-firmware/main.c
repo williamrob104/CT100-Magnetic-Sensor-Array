@@ -14,6 +14,8 @@
 
 #define BAUD_RATE 9600u
 
+#define LED_BLINK 100u  // ms
+
 void setGain(uint8_t g)
 {
 	/* g = 0b00, 0b01, 0b10, 0b11 */
@@ -82,18 +84,27 @@ main()
 			   UART1_MODE_TXRX_ENABLE);
 	UART1_Cmd(ENABLE);
 
-	// execute commands from UART
+	// init TIM
+	TIM1_TimeBaseInit(1999u, TIM1_COUNTERMODE_UP, LED_BLINK-1, 0u);
+	TIM1_SelectOnePulseMode(TIM1_OPMODE_SINGLE);
+
+	// main loop
 	while (1) {
-		while (UART1_GetFlagStatus(UART1_FLAG_RXNE) == RESET) {}
+		if (TIM1_GetFlagStatus(TIM1_FLAG_UPDATE) == SET) {
+			TIM1_ClearFlag(TIM1_FLAG_UPDATE);
+			GPIO_WriteHigh(LED);
+		}
+
+		if (UART1_GetFlagStatus(UART1_FLAG_RXNE) == RESET)
+			continue;
+
 		cmd = UART1_ReceiveData8();
 		accept = 1;
 
 		cmd_u = cmd & 0xF0;
 		cmd_l = cmd & 0x0F;
 
-		if (cmd == 'z')
-			GPIO_WriteReverse(LED);
-		else if (cmd_u == 0xA0 && cmd_l <= 0x03)
+		if (cmd_u == 0xA0 && cmd_l <= 0x03)
 			setGain(cmd_l);
 		else if (0x10 <= cmd_u & cmd_u <= 0x40)
 			setChannel(cmd_u >> 4, cmd_l);
@@ -101,6 +112,9 @@ main()
 			accept = 0;
 
 		if (accept) {
+			GPIO_WriteLow(LED);
+			TIM1_Cmd(ENABLE);
+
 			while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET) {}
 			UART1_SendData8(cmd);
 		}

@@ -1,11 +1,9 @@
 ## UART interface
 
-Baudrate: 9600
+The UART interface uses a baud of 9600. Each byte `c` received on the RX end is parsed as follows.
 
-|   Command   | action                       |
-| :---------: | :--------------------------- |
-| 0xA0 ~ 0xA3 | set gain                     |
-| 0x10 ~ 0x1F | set channel 1 to sensor 1~16 |
-| 0x20 ~ 0x2F | set channel 2 to sensor 1~16 |
-| 0x30 ~ 0x3F | set channel 3 to sensor 1~16 |
-| 0x40 ~ 0x4F | set channel 4 to sensor 1~16 |
+`c[7:6]` represents the channel number\
+`c[5:4]` represents the gain on that channel\
+`c[3:0]` represents the sensor which the channel is switched to
+
+When the gain setting and sensor switching is finished, the same byte is echoed on the TX end.

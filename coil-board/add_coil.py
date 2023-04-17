@@ -97,8 +97,8 @@ def draw_trace(f, trace_type, x, y, width, layer):
 # parameters in mm
 board_center = (100, 100)
 board_width = 100
-board_fillet = 12.2
-board_margin = 2
+board_fillet = 10.7
+board_margin = 0.5
 trace_width = 0.4
 trace_offset = 0.6
 coil_fillet = 10
@@ -119,13 +119,13 @@ trace_type,x,y = rectangular_coil(coil_x_width, coil_y_width, coil_fillet, trace
 traces = [
     (trace_type, -x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
     (trace_type,  x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'F.Cu'),
-    (trace_type,  x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
-    (trace_type, -x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
+    # (trace_type,  x+board_center[0]+coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
+    # (trace_type, -x+board_center[0]-coil_offset, -y+board_center[1], trace_width, 'B.Cu'),
 ]
 
 vias = [
-    ((127, 100), 0.8, 0.4),
-    (( 73, 100), 0.8, 0.4),
+    # ((127, 100), 0.8, 0.4),
+    # (( 73, 100), 0.8, 0.4),
 ]
 
 current_dir = os.path.dirname(os.path.realpath(__file__))

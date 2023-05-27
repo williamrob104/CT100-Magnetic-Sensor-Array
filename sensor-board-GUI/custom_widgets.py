@@ -1,6 +1,5 @@
 import os
 
-import serial.serialutil
 import serial.tools.list_ports
 from serial import Serial
 from PyQt6.QtCore import Qt
@@ -13,13 +12,10 @@ class MainWidget(QWidget):
         super().__init__(parent)
         self.serial = serial
 
-        self.board_config_widget = BoardConfigWidget(self.serial, fliplr)
-
         layout = QVBoxLayout()
         layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
-
         layout.addWidget(PortConnectWidget(serial))
-        layout.addWidget(self.board_config_widget)
+        layout.addWidget(BoardConfigWidget(self.serial, fliplr))
 
         self.setLayout(layout)
 
@@ -29,7 +25,7 @@ class PortConnectWidget(QWidget):
         super().__init__(parent)
         self.serial = serial
 
-        self.port_selection_widget = PortComboBoxWidget()
+        self.port_selection_widget = PortSelectionWidget()
         self.port_selection_widget.setPortName(self.serial.port)
 
         button = QToolButton()
@@ -49,15 +45,15 @@ class PortConnectWidget(QWidget):
 
         self.serial.close()
         self.serial.port = port
+        self.serial.timeout = 0.1
         self.serial.write_timeout = 0.1
         try:
             self.serial.open()
-        except serial.serialutil.SerialException as e:
-            self.serial.close()
+        except Exception as e:
             display_error_message(str(e))
 
 
-class PortComboBoxWidget(QComboBox):
+class PortSelectionWidget(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.refreshItems()
@@ -87,7 +83,7 @@ class BoardConfigWidget(QFrame):
         self.selected_sensors = [None] * 4
         self.selected_gains   = [None] * 4
         self.sensor_set_widgets = []
-        self.gain_set_widgets = []
+        self.gain_set_widgets   = []
 
         lr = fliplr
 
@@ -144,24 +140,36 @@ class BoardConfigWidget(QFrame):
 
         sensor   = self.selected_sensors[channel-1]
         gain_idx = self.selected_gains[channel-1]
+        print(f"channel {channel} | sensor {sensor} | gain_idx {gain_idx}")
 
         if sensor is not None and gain_idx is not None:
             b1 = sensor - 1
             b2 = gain_idx << 4
             b3 = (channel - 1) << 6
             b = b1 | b2 | b3
+            print(f"send {b:08b}")
             cmd = b.to_bytes(length=1, byteorder='big')
 
+        if 'cmd' in locals():
             try:
+                if not self.serial.is_open:
+                    raise RuntimeError('COM port not connected')
+                self.serial.read_all()
                 self.serial.write(cmd)
-            except serial.serialutil.SerialException as e:
+                echo = self.serial.read(1)
+                if not len(echo):
+                    raise RuntimeError('COM port not responding')
+            except Exception as e:
                 display_error_message(str(e))
+                return
 
+            b = int.from_bytes(echo, byteorder='big') & 0xff
+            print(f"echo {b:08b}")
+            channel  = ((b & 0b11000000) >> 6) + 1
+            gain_idx = ((b & 0b00110000) >> 4)
+            sensor   = ((b & 0b00001111) >> 0) + 1
             self.sensor_set_widgets[channel-1].highlightSensor(sensor)
             self.gain_set_widgets[channel-1].highlightGainIndex(gain_idx)
-
-        extra = f" | \t{b:08b}" if 'b' in locals() else ""
-        print(f"channel {channel} | sensor {sensor} | gain_idx {gain_idx}" + extra)
 
 
 class SensorSetWidget(QWidget):
@@ -185,7 +193,7 @@ class SensorSetWidget(QWidget):
         for button in self.buttons:
             button.setStyleSheet("QToolButton")
         self.buttons[sensor_num-1].setStyleSheet(
-            "QToolButton { background-color : red; color : black; }")
+            "QToolButton { background-color : red; color : black }")
 
 
 
@@ -207,7 +215,6 @@ class GainSetWidget(QWidget):
 
     def highlightGainIndex(self, gain_idx):
         self.combobox.setCurrentIndex(gain_idx)
-
 
 
 def display_error_message(text):

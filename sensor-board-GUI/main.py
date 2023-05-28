@@ -1,19 +1,30 @@
+import argparse
+
 import serial
 from PyQt6.QtWidgets import QApplication
 
 import custom_widgets
 
-flip_left_right = False
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--flip",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Flip user interface as if viewing from another side of the sensor board",
+    )
+    args = parser.parse_args()
 
-ser = serial.Serial()
-ser.baudrate = 9600
+    ser = serial.Serial()
+    ser.baudrate = 9600
 
-app = QApplication([])
-app.setApplicationName("Magnetic Sensor Array")
-app.setWindowIcon
-app.setStyle("fusion")
+    app = QApplication([])
+    app.setApplicationName("Magnetic Sensor Array")
+    app.setWindowIcon
+    app.setStyle("fusion")
 
-widget = custom_widgets.MainWidget(ser, flip_left_right)
-widget.show()
+    widget = custom_widgets.MainWidget(ser, args.flip)
+    widget.show()
 
-app.exec()
+    app.exec()

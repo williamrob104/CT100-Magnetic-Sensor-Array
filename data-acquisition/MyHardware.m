@@ -37,6 +37,8 @@ classdef MyHardware
 
         function delete(myhardware)
             AnalogOutputStop(myhardware)
+            AnalogInputStop(myhardware)
+            SwitchRelay(myhardware, false)
         end
 
         function SwitchRelay(myhardware, bool)

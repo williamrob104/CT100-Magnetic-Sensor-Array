@@ -44,8 +44,7 @@ classdef MyHardware
         end
 
         function AnalogOutputContinuous(myhardware, expr)
-            stop(myhardware.analog_out)
-            flush(myhardware.analog_out)
+            myhardware.AnalogOutputStop();
             rate = myhardware.analog_out.Rate;
 
             expr = insertBefore(expr, newline, ';');
@@ -74,16 +73,41 @@ classdef MyHardware
 
         function AnalogOutputStop(myhardware)
             stop(myhardware.analog_out)
+            flush(myhardware.analog_out)
             write(myhardware.analog_out, 0)
         end
 
-        function [t,src,ch1,ch2,ch3,ch4] = AnalogInputRead(myhardware, span)
+        function [t,src,ch1,ch2,ch3,ch4] = AnalogInputSingle(myhardware, span)
             [data,t,~] = read(myhardware.analog_in, span, "OutputFormat","Matrix");
             src = data(:,1);
             ch1 = data(:,2);
             ch2 = data(:,3);
             ch3 = data(:,4);
             ch4 = data(:,5);
+        end
+
+        function AnalogInputContinuous(myhardware, span, callback)
+            myhardware.AnalogInputStop();
+            if isa(span, 'duration')                
+                count = seconds(span) * myhardware.analog_in.Rate;
+            else
+                count = span;
+            end
+            count = max(count, myhardware.analog_in.Rate * 0.1);
+            myhardware.analog_in.ScansAvailableFcnCount = count;
+
+            function handleMoreData(obj, ~)
+                [data,t,~] = read(obj, obj.ScansAvailableFcnCount, "OutputFormat","Matrix");
+                callback(t, data(:,1), data(:,2), data(:,3), data(:,4), data(:,5));
+            end
+
+            myhardware.analog_in.ScansAvailableFcn = @handleMoreData;
+            start(myhardware.analog_in, "Continuous")
+        end
+
+        function AnalogInputStop(myhardware)
+            stop(myhardware.analog_in)
+            flush(myhardware.analog_in)
         end
     end
 

@@ -9,6 +9,7 @@ classdef SensorArrayUI < matlab.ui.componentcontainer.ComponentContainer
     properties (Access = public)
         myhardware
         Enable = "on";
+        Tooltip = "";
     end
 
     methods (Access = protected)
@@ -40,6 +41,7 @@ classdef SensorArrayUI < matlab.ui.componentcontainer.ComponentContainer
         function update(ui)
             assert(strcmp(ui.Enable,'on') || strcmp(ui.Enable,'off'))
             ui.panel.Enable = ui.Enable;
+            ui.panel.Tooltip = ui.Tooltip;
         end
     end
 

@@ -7,6 +7,11 @@ classdef MyHardware
         serial
     end
 
+    properties (SetAccess = private)
+        AnalogOutputRate
+        AnalogInputRate
+    end
+
     methods (Access = public)
 
         function myhardware = MyHardware(port)
@@ -17,6 +22,7 @@ classdef MyHardware
             addoutput(dq, deviceID, "ao0", "Voltage")
             dq.Rate = dq.RateLimit(2);
             myhardware.analog_out = dq;
+            myhardware.AnalogOutputRate = dq.Rate;
 
             % configure analog input
             dq = daq("ni");
@@ -27,6 +33,7 @@ classdef MyHardware
             ch = addinput(dq, deviceID, "ai4", "Voltage");  ch.TerminalConfig = "Differential";
             dq.Rate = dq.RateLimit(2);
             myhardware.analog_in = dq;
+            myhardware.AnalogInputRate = dq.Rate;
 
             % configure analog output
             dq = daq("ni");

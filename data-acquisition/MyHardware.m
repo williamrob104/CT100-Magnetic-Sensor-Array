@@ -4,11 +4,12 @@ classdef MyHardware
         analog_out
         analog_in
         digital_out_relay
+        serial
     end
 
     methods (Access = public)
 
-        function myhardware = MyHardware()
+        function myhardware = MyHardware(port)
             deviceID = "Dev1";
 
             % configure analog output
@@ -33,12 +34,18 @@ classdef MyHardware
             addoutput(dq, deviceID, "port1/line7", "Digital")
             warning('on', 'daq:Session:onDemandOnlyChannelsAdded')
             myhardware.digital_out_relay = dq;
+
+            % configure serial port
+            if nargin >= 1
+                myhardware.serial = serialport(port, 9600, 'Timeout',0.05);
+            end
         end
 
         function delete(myhardware)
-            AnalogOutputStop(myhardware)
-            AnalogInputStop(myhardware)
-            SwitchRelay(myhardware, false)
+            myhardware.serial = [];
+            myhardware.AnalogOutputStop()
+            myhardware.AnalogInputStop()
+            myhardware.SwitchRelay(false)
         end
 
         function SwitchRelay(myhardware, bool)
@@ -110,6 +117,33 @@ classdef MyHardware
         function AnalogInputStop(myhardware)
             stop(myhardware.analog_in)
             flush(myhardware.analog_in)
+        end
+
+        function confirmed = SetSensorAndGain(myhardware, channel, sensor, gain)
+            assert(1 <= channel && channel <= 4)
+            assert(1 <= sensor && sensor <= 16)
+            assert(gain == 1 || gain == 10 || gain == 100 || gain == 1000)
+
+            if     gain == 1,    gain_idx = uint8(0);
+            elseif gain == 10,   gain_idx = uint8(1);
+            elseif gain == 100,  gain_idx = uint8(2);
+            elseif gain == 1000, gain_idx = uint8(3);
+            end
+
+            byte = bitor( bitshift(uint8(channel-1),6), bitshift(gain_idx,4) );
+            byte = bitor( byte                      , uint8(sensor-1)        );
+
+            try
+                flush(myhardware.serial, "input")
+                write(myhardware.serial, byte, "uint8")
+    
+                warning('off', 'serialport:serialport:ReadWarning')
+                echo = read(myhardware.serial, 1, "uint8");
+                warning('on',  'serialport:serialport:ReadWarning')
+                confirmed = (byte == echo);
+            catch
+                confirmed = [];
+            end
         end
     end
 

@@ -44,7 +44,7 @@ classdef MyHardware
 
             % configure serial port
             if nargin >= 1
-                myhardware.serial = serialport(port, 9600, 'Timeout',0.05);
+                myhardware.serial = serialport(port, 115200, 'Timeout',0.05);
             end
         end
 
@@ -138,7 +138,7 @@ classdef MyHardware
             end
 
             byte = bitor( bitshift(uint8(channel-1),6), bitshift(gain_idx,4) );
-            byte = bitor( byte                      , uint8(sensor-1)        );
+            byte = bitor( byte                        , uint8(sensor-1)      );
 
             try
                 flush(myhardware.serial, "input")

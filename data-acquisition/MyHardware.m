@@ -44,7 +44,7 @@ classdef MyHardware
 
             % configure serial port
             if nargin >= 1
-                myhardware.serial = serialport(port, 115200, 'Timeout',0.05);
+                myhardware.serial = serialport(port, 115200, 'Timeout',0.1);
             end
         end
 
@@ -127,6 +127,45 @@ classdef MyHardware
         end
 
         function confirmed = SetSensorAndGain(myhardware, channel, sensor, gain)
+            byte = MyHardware.ChannelSensorGain2Cmd(channel, sensor, gain);
+            try
+                flush(myhardware.serial, "input")
+                write(myhardware.serial, byte, "uint8")
+    
+                warning('off', 'serialport:serialport:ReadWarning')
+                echo = read(myhardware.serial, 1, "uint8");
+                warning('on',  'serialport:serialport:ReadWarning')
+                confirmed = (byte == echo);
+            catch
+                confirmed = [];
+            end
+        end
+
+        function confirmed = SetAllSensorAndGain(myhardware, ...
+                channel1_sensor, channel1_gain, channel2_sensor, channel2_gain, ...
+                channel3_sensor, channel3_gain, channel4_sensor, channel4_gain)
+            byte1 = MyHardware.ChannelSensorGain2Cmd(1, channel1_sensor, channel1_gain);
+            byte2 = MyHardware.ChannelSensorGain2Cmd(2, channel2_sensor, channel2_gain);
+            byte3 = MyHardware.ChannelSensorGain2Cmd(3, channel3_sensor, channel3_gain);
+            byte4 = MyHardware.ChannelSensorGain2Cmd(4, channel4_sensor, channel4_gain);
+            bytes = [byte1 byte2 byte3 byte4];
+            try
+                flush(myhardware.serial, "input")
+                write(myhardware.serial, bytes, "uint8")
+    
+                warning('off', 'serialport:serialport:ReadWarning')
+                echos = read(myhardware.serial, 4, "uint8");
+                warning('on',  'serialport:serialport:ReadWarning')
+                confirmed = (length(bytes) == length(echos)) && all(bytes == echos);
+            catch
+                confirmed = [];
+            end
+        end
+    end
+
+    methods (Access = private, Static)
+
+        function byte = ChannelSensorGain2Cmd(channel, sensor, gain)
             assert(1 <= channel && channel <= 4)
             assert(1 <= sensor && sensor <= 16)
             assert(gain == 1 || gain == 10 || gain == 100 || gain == 1000)
@@ -139,18 +178,6 @@ classdef MyHardware
 
             byte = bitor( bitshift(uint8(channel-1),6), bitshift(gain_idx,4) );
             byte = bitor( byte                        , uint8(sensor-1)      );
-
-            try
-                flush(myhardware.serial, "input")
-                write(myhardware.serial, byte, "uint8")
-    
-                warning('off', 'serialport:serialport:ReadWarning')
-                echo = read(myhardware.serial, 1, "uint8");
-                warning('on',  'serialport:serialport:ReadWarning')
-                confirmed = (byte == echo);
-            catch
-                confirmed = [];
-            end
         end
     end
 

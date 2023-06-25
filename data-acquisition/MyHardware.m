@@ -126,7 +126,7 @@ classdef MyHardware
             flush(myhardware.analog_in)
         end
 
-        function confirmed = SetSensorAndGain(myhardware, channel, sensor, gain)
+        function confirmation = SetSensorAndGain(myhardware, channel, sensor, gain)
             byte = MyHardware.ChannelSensorGain2Cmd(channel, sensor, gain);
             try
                 flush(myhardware.serial, "input")
@@ -135,13 +135,13 @@ classdef MyHardware
                 warning('off', 'serialport:serialport:ReadWarning')
                 echo = read(myhardware.serial, 1, "uint8");
                 warning('on',  'serialport:serialport:ReadWarning')
-                confirmed = (byte == echo);
+                confirmation = (byte == echo);
             catch
-                confirmed = [];
+                confirmation = [];
             end
         end
 
-        function confirmed = SetAllSensorAndGain(myhardware, ...
+        function confirmation = SetAllSensorAndGain(myhardware, ...
                 channel1_sensor, channel1_gain, channel2_sensor, channel2_gain, ...
                 channel3_sensor, channel3_gain, channel4_sensor, channel4_gain)
             byte1 = MyHardware.ChannelSensorGain2Cmd(1, channel1_sensor, channel1_gain);
@@ -156,9 +156,9 @@ classdef MyHardware
                 warning('off', 'serialport:serialport:ReadWarning')
                 echos = read(myhardware.serial, 4, "uint8");
                 warning('on',  'serialport:serialport:ReadWarning')
-                confirmed = (length(bytes) == length(echos)) && all(bytes == echos);
+                confirmation = (length(bytes) == length(echos)) && all(bytes == echos);
             catch
-                confirmed = [];
+                confirmation = [];
             end
         end
     end

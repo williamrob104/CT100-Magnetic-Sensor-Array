@@ -45,6 +45,17 @@ classdef SensorArrayUI < matlab.ui.componentcontainer.ComponentContainer
         end
     end
 
+    methods (Access = public)
+        
+        function HighlightSensorAndGain(ui, channel, sensor, gain)
+            for i = 1:16
+                ui.channels{channel}.sensor_buttons{i}.BackgroundColor = ones(1,3) * 0.96;
+            end
+            ui.channels{channel}.sensor_buttons{sensor}.BackgroundColor = [1 0 0];
+            ui.channels{channel}.gain_selector.Value = num2str(gain);
+        end
+    end
+
     methods (Access = private)
 
         function [sensor_buttons, gain_selector] = AddComponents(ui, channel)
@@ -106,24 +117,16 @@ classdef SensorArrayUI < matlab.ui.componentcontainer.ComponentContainer
             sensor = ui.channels{channel}.sensor;
             gain   = ui.channels{channel}.gain;
             if ~isempty(sensor) && ~isempty(gain)
-                confirmed = ui.myhardware.SetSensorAndGain(channel, sensor, gain);
+                confirmation = ui.myhardware.SetSensorAndGain(channel, sensor, gain);
 
-                if isempty(confirmed)
+                if isempty(confirmation)
                     errordlg("Sensor board communication serial port is unresponsive")
-                elseif ~confirmed
+                elseif ~confirmation
                     errordlg("Sensor board communication serial port has incorrect response")
                 else
                     ui.HighlightSensorAndGain(channel, sensor, gain);
                 end
             end
-        end
-        
-        function HighlightSensorAndGain(ui, channel, sensor, gain)
-            for i = 1:16
-                ui.channels{channel}.sensor_buttons{i}.BackgroundColor = ones(1,3) * 0.96;
-            end
-            ui.channels{channel}.sensor_buttons{sensor}.BackgroundColor = [1 0 0];
-            ui.channels{channel}.gain_selector.Value = num2str(gain);
         end
     end
 

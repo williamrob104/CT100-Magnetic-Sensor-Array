@@ -9,7 +9,7 @@ function [sensor_gains, tf] = AutoCaptureConfigDlg(sensor_gains)
     gains  = [1 10 100 1000];
     colors = {[0 0.4470 0.7410] [0.8500 0.3250 0.0980] [0.9290 0.6940 0.1250] [0.4940 0.1840 0.5560]};
 
-    fig = uifigure('Name','Acquire data configuration', 'Position',[800 400 430 400], 'WindowStyle','modal');
+    fig = uifigure('Name','Acquire data configuration', 'Position',[800 400 430 400], 'WindowStyle','modal', 'Resize','off');
 
     offset = [50 100];
     for channel = 1:4

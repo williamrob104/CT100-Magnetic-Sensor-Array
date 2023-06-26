@@ -156,7 +156,11 @@ classdef MyHardware
                 warning('off', 'serialport:serialport:ReadWarning')
                 echos = read(myhardware.serial, 4, "uint8");
                 warning('on',  'serialport:serialport:ReadWarning')
-                confirmation = (length(bytes) == length(echos)) && all(bytes == echos);
+                if ~isempty(echos)
+                    confirmation = (length(bytes) == length(echos)) && all(bytes == echos);
+                else
+                    confirmation = [];
+                end
             catch
                 confirmation = [];
             end

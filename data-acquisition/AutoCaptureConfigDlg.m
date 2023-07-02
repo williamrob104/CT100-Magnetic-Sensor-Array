@@ -23,6 +23,7 @@ function [sensor_gains, gensig_mode, tf] = AutoCaptureConfigDlg(sensor_gains, ge
     panel.Layout.Row = 1;
 
     offset = [5 27];
+    buttons = {};
     for channel = 1:4
         for sensor = 1:16
             i = (channel - 1) * 16 + sensor;
@@ -32,6 +33,7 @@ function [sensor_gains, gensig_mode, tf] = AutoCaptureConfigDlg(sensor_gains, ge
             setappdata(button, 'i',i);
             button.BackgroundColor = colors{gains == sensor_gains(i)};
             button.ButtonPushedFcn = @SensorButtonPushed;
+            buttons{end+1} = button;
         end
         x = mod( channel-1,   2);
         y = fix((channel-1) / 2);
@@ -49,8 +51,12 @@ function [sensor_gains, gensig_mode, tf] = AutoCaptureConfigDlg(sensor_gains, ge
     offset = [265 210];
     label = uilabel(panel, 'Text','Gain', 'HorizontalAlignment','center', 'FontWeight','bold', 'Position',[offset 50 22]);
     for k = 1:length(gains)
-        label = uilabel(panel, 'Position',[[0 -27*k] + offset 30 22],  'Text','', 'BackgroundColor',colors{k});
         label = uilabel(panel, 'Position',[[35 -27*k] + offset 30 22], 'Text',num2str(gains(k)));
+
+        sticker = uibutton(panel, 'Position',[[0 -27*k] + offset 30 22],  'Text','', 'BackgroundColor',colors{k});
+        setappdata(sticker, 'k',k);
+        setappdata(sticker, 'timer',{});
+        sticker.ButtonPushedFcn = @StickerPushed;
     end
 
     dropdown = uidropdown(gridlayout);
@@ -73,6 +79,18 @@ function [sensor_gains, gensig_mode, tf] = AutoCaptureConfigDlg(sensor_gains, ge
         k = mod(k, length(gains)) + 1;
         sensor_gains(i) = gains(k);
         button.BackgroundColor = colors{k};
+    end
+
+    function StickerPushed(sticker,~)
+        timer = getappdata(sticker, 'timer');
+        if ~isempty(timer) && toc(timer) < 0.5
+            k = getappdata(sticker, 'k');
+            for i = 1:length(sensor_gains)
+                sensor_gains(i) = gains(k);
+                buttons{i}.BackgroundColor = colors{k};
+            end
+        end
+        setappdata(sticker, 'timer',tic);
     end
 
     function OkButtonPushed(~,~)

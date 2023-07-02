@@ -53,6 +53,9 @@ classdef SensorArrayUI < matlab.ui.componentcontainer.ComponentContainer
             end
             ui.channels{channel}.sensor_buttons{sensor}.BackgroundColor = [1 0 0];
             ui.channels{channel}.gain_selector.Value = num2str(gain);
+
+            ui.channels{channel}.sensor = sensor;
+            ui.channels{channel}.gain = gain;
         end
     end
 

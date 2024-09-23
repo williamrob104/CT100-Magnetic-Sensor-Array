@@ -23,7 +23,7 @@ for i = 1:numel(list)
         end
     end
 end
-key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\';
+key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\';
 [~, vals] = dos(['REG QUERY ' key ' /s /f "FriendlyName" /t "REG_SZ"']);
 if ischar(vals) && strcmp('ERROR',vals(1:5))
     disp('Error: IDSerialComs - No Enumerated USB registry entry')

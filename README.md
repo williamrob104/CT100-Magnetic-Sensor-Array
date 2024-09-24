@@ -22,4 +22,5 @@ The `sensor-board-firmware` directory contains the firmware for the onboard STM8
 
 ## Software
 
-The `data-acquisition` directory contains the MATLAB App to acquire data
+The `data-acquisition` directory contains the MATLAB App to acquire data\
+![](figures/data-acquisition.png)

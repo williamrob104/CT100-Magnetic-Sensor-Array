@@ -53,7 +53,8 @@ classdef MyHardware
             % configure serial port for sensor array
             try
                 friendlyName = "USB Serial Port";
-                [myhardware.serial_sensor, myhardware.SerialSensorName] = MyHardware.connectToSerialPort(friendlyName, 115200);
+                myhardware.serial_sensor = MyHardware.connectToSerialPort(friendlyName, 115200, 'Timeout',0.1);
+                myhardware.SerialSensorName = sprintf("%s (%s)", friendlyName, myhardware.serial_sensor.Port);
             catch err
                 myhardware.error_serial_sensor = err.message;
             end
@@ -61,7 +62,8 @@ classdef MyHardware
             % configure serial port for relay
             try
                 friendlyName = "USB-SERIAL CH340";
-                [myhardware.serial_relay, myhardware.SerialRelayName] = MyHardware.connectToSerialPort(friendlyName, 9600);
+                myhardware.serial_relay = MyHardware.connectToSerialPort(friendlyName, 9600, 'Timeout',0.1);
+                myhardware.SerialRelayName = sprintf("%s (%s)", friendlyName, myhardware.serial_sensor.Port);
             catch err
                 myhardware.error_serial_relay = err.message;
             end
@@ -208,7 +210,7 @@ classdef MyHardware
             byte = bitor( byte                        , uint8(sensor-1)      );
         end
 
-        function [serial, displayName] = connectToSerialPort(friendlyName, baud)
+        function serial = connectToSerialPort(friendlyName, baud, varargin)
             port = [];
             devices = IDSerialComs();
             for i = 1:size(devices,1)
@@ -224,8 +226,7 @@ classdef MyHardware
             if isempty(port)
                 error('Cannot find serial port with the name "%s"', friendlyName)
             else
-                serial = serialport(port, baud, 'Timeout',0.1);
-                displayName = sprintf("%s (%s)", friendlyName, port);
+                serial = serialport(port, baud, varargin{:});
             end
         end
 

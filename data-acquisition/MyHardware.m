@@ -1,72 +1,48 @@
-classdef MyHardware
+classdef MyHardware < handle
 
     properties (Access = private)
         analog_out
         analog_in
-        serial_relay
         serial_sensor
-    end
-
-    properties (SetAccess = private)
-        error_analog_out
-        error_analog_in
-        error_serial_sensor
-        error_serial_relay
-
-        AnalogOutputRate
-        AnalogInputRate
-        SerialSensorName
-        SerialRelayName
+        serial_relay
     end
 
     methods (Access = public)
 
-        function myhardware = MyHardware()
+        function [analog_out_rate, analog_in_rate] = connectDAQ(myhardware)
             % configure analog output
-            try
-                dq = daq("ni");
-                deviceID = "cDAQ1Mod6";
-                addoutput(dq, deviceID, "ao0", "Voltage")
-                dq.Rate = dq.RateLimit(2);
-                myhardware.analog_out = dq;
-                myhardware.AnalogOutputRate = dq.Rate;
-            catch err
-                myhardware.error_analog_out = err.message;
-            end
+            dq = daq("ni");
+            deviceID = "cDAQ1Mod6";
+            addoutput(dq, deviceID, "ao0", "Voltage")
+            dq.Rate = dq.RateLimit(2);
+            myhardware.analog_out = dq;
+            analog_out_rate = dq.Rate;
 
             % configure analog input
-            try
-                dq = daq("ni");
-                deviceID = "cDAQ1Mod7";
-                ch = addinput(dq, deviceID, "ai0", "Voltage");  ch.TerminalConfig = "Differential";
-                ch = addinput(dq, deviceID, "ai1", "Voltage");  ch.TerminalConfig = "Differential";
-                ch = addinput(dq, deviceID, "ai2", "Voltage");  ch.TerminalConfig = "Differential";
-                ch = addinput(dq, deviceID, "ai3", "Voltage");  ch.TerminalConfig = "Differential";
-                ch = addinput(dq, deviceID, "ai4", "Voltage");  ch.TerminalConfig = "Differential";
-                dq.Rate = dq.RateLimit(2);
-                myhardware.analog_in = dq;
-                myhardware.AnalogInputRate = dq.Rate;
-            catch err
-                myhardware.error_analog_in = err.message;
-            end
+            dq = daq("ni");
+            deviceID = "cDAQ1Mod7";
+            ch = addinput(dq, deviceID, "ai0", "Voltage");  ch.TerminalConfig = "Differential";
+            ch = addinput(dq, deviceID, "ai1", "Voltage");  ch.TerminalConfig = "Differential";
+            ch = addinput(dq, deviceID, "ai2", "Voltage");  ch.TerminalConfig = "Differential";
+            ch = addinput(dq, deviceID, "ai3", "Voltage");  ch.TerminalConfig = "Differential";
+            ch = addinput(dq, deviceID, "ai4", "Voltage");  ch.TerminalConfig = "Differential";
+            dq.Rate = dq.RateLimit(2);
+            myhardware.analog_in = dq;
+            analog_in_rate = dq.Rate;
+        end
 
-            % configure serial port for sensor array
-            try
-                friendlyName = "USB Serial Port";
-                myhardware.serial_sensor = MyHardware.connectToSerialPort(friendlyName, 115200, 'Timeout',0.1);
-                myhardware.SerialSensorName = sprintf("%s (%s)", friendlyName, myhardware.serial_sensor.Port);
-            catch err
-                myhardware.error_serial_sensor = err.message;
-            end
+        function serial_name = connectSensorSerial(myhardware)
+            friendlyName = "USB Serial Port";
+            port = MyHardware.findSerialPortFromFriendlyName(friendlyName);
+            myhardware.serial_sensor = serialport(port, 115200, 'Timeout',0.1);
+            serial_name = sprintf("%s (%s)", friendlyName, port);
+        end
 
-            % configure serial port for relay
-            try
-                friendlyName = "USB-SERIAL CH340";
-                myhardware.serial_relay = MyHardware.connectToSerialPort(friendlyName, 9600, 'Timeout',0.1);
-                myhardware.SerialRelayName = sprintf("%s (%s)", friendlyName, myhardware.serial_sensor.Port);
-            catch err
-                myhardware.error_serial_relay = err.message;
-            end
+        function serial_name = connectRelaySerial(myhardware)
+            friendlyName = "USB-SERIAL CH340";
+            port = MyHardware.findSerialPortFromFriendlyName(friendlyName);
+            myhardware.serial_relay = serialport(port, 9600, 'Timeout',0.1);
+            serial_name = sprintf("%s (%s)", friendlyName, port);
         end
 
         function delete(myhardware)
@@ -153,7 +129,7 @@ classdef MyHardware
         end
 
         function confirmation = SetSensorAndGain(myhardware, channel, sensor, gain)
-            byte = MyHardware.ChannelSensorGain2Cmd(channel, sensor, gain);
+            byte = MyHardware.channelSensorGain2Cmd(channel, sensor, gain);
             try
                 flush(myhardware.serial_sensor, "input")
                 write(myhardware.serial_sensor, byte, "uint8")
@@ -170,10 +146,10 @@ classdef MyHardware
         function confirmation = SetAllSensorAndGain(myhardware, ...
                 channel1_sensor, channel1_gain, channel2_sensor, channel2_gain, ...
                 channel3_sensor, channel3_gain, channel4_sensor, channel4_gain)
-            byte1 = MyHardware.ChannelSensorGain2Cmd(1, channel1_sensor, channel1_gain);
-            byte2 = MyHardware.ChannelSensorGain2Cmd(2, channel2_sensor, channel2_gain);
-            byte3 = MyHardware.ChannelSensorGain2Cmd(3, channel3_sensor, channel3_gain);
-            byte4 = MyHardware.ChannelSensorGain2Cmd(4, channel4_sensor, channel4_gain);
+            byte1 = MyHardware.channelSensorGain2Cmd(1, channel1_sensor, channel1_gain);
+            byte2 = MyHardware.channelSensorGain2Cmd(2, channel2_sensor, channel2_gain);
+            byte3 = MyHardware.channelSensorGain2Cmd(3, channel3_sensor, channel3_gain);
+            byte4 = MyHardware.channelSensorGain2Cmd(4, channel4_sensor, channel4_gain);
             bytes = [byte1 byte2 byte3 byte4];
             try
                 flush(myhardware.serial_sensor, "input")
@@ -195,7 +171,7 @@ classdef MyHardware
 
     methods (Access = private, Static)
 
-        function byte = ChannelSensorGain2Cmd(channel, sensor, gain)
+        function byte = channelSensorGain2Cmd(channel, sensor, gain)
             assert(1 <= channel && channel <= 4)
             assert(1 <= sensor && sensor <= 16)
             assert(gain == 1 || gain == 10 || gain == 100 || gain == 1000)
@@ -210,7 +186,7 @@ classdef MyHardware
             byte = bitor( byte                        , uint8(sensor-1)      );
         end
 
-        function serial = connectToSerialPort(friendlyName, baud, varargin)
+        function port = findSerialPortFromFriendlyName(friendlyName)
             port = [];
             devices = IDSerialComs();
             for i = 1:size(devices,1)
@@ -222,11 +198,8 @@ classdef MyHardware
                     end
                 end
             end
-
             if isempty(port)
                 error('Cannot find serial port with the name "%s"', friendlyName)
-            else
-                serial = serialport(port, baud, varargin{:});
             end
         end
 
